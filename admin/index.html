@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="module" src="script.js"></script>
+</head>
+<body class="bg-gray-100 p-6">
+
+    <div class="max-w-4xl mx-auto bg-white p-6 rounded-lg shadow-lg">
+        <h2 class="text-2xl font-bold mb-4 text-center">Admin Dashboard</h2>
+
+        <!-- Add Member Form -->
+        <!-- Add Member Form -->
+<div class="mb-4">
+    <input id="memberName" type="text" placeholder="Enter Member Name" class="w-full p-2 border rounded">
+    <input id="memberMail" type="email" placeholder="Enter Email ID" class="w-full p-2 border rounded mt-2">
+    <input id="memberPassword" type="password" placeholder="Enter Password" class="w-full p-2 border rounded mt-2">
+    <button onclick=addMember() id="addMemberBtn" class="mt-2 bg-blue-500 text-white px-4 py-2 rounded">Add Member</button>
+</div>
+
+
+        <!-- Members List -->
+        <h3 class="text-lg font-semibold mb-2">Members</h3>
+        <ul id="memberList" class="list-none space-y-2"></ul>
+
+<!-- Bill Form -->
+<div id="billForm" class="hidden bg-gray-200 p-4 rounded mt-4">
+    <h3 class="text-lg font-semibold">Generate Bill</h3>
+    <input type="number" id="billAmount" placeholder="Enter Amount" class="w-full p-2 border rounded mt-2">
+    <button id="submitBill" class="bg-green-500 text-white px-4 py-2 rounded mt-2">Generate</button>
+</div>
+
+    </div>
+    <div class="flex justify-center mb-4">
+        <button id="logoutBtn" class="bg-red-500 text-white px-6 py-3 rounded-lg font-semibold text-lg hover:bg-red-700 transition">
+            Logout
+        </button>
+    </div>
+    <!-- Firebase Scripts -->
+    <script type="module" src="./firebase.js"></script>
+    <script type="module" src="script.js"></script>
+
+</body>
+</html>
