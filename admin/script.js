@@ -1,107 +1,160 @@
-import { db,auth } from "../firebase.js";
+import { db, auth } from "../firebase.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-auth.js";
-import { collection, addDoc, getDocs, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js";
+import { createUserWithEmailAndPassword, deleteUser } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-auth.js";
+import { collection, addDoc, getDocs, deleteDoc, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js";
 
-
-onAuthStateChanged(auth, (user) => {
-  if (!user) {
-      // Redirect to login page if not logged in
-      window.location.href = "../login/index.html";
-  }
-});
-document.getElementById("logoutBtn")?.addEventListener("click", async () => {
-  await signOut(auth);
-  window.location.href = "../login/index.html"; // Redirect after logout
-});
-let selectedMemberId = null; // Store selected member for billing
-
-// Function to add a member
-async function addMember() {
-    let name = document.getElementById("memberName").value.trim();
-    let email = document.getElementById("memberMail").value.trim();
-    let password = document.getElementById("memberPassword").value.trim();
-
-    if (name === "") return alert("Enter a valid name!");
+// Check auth state and admin status
+onAuthStateChanged(auth, async (user) => {
+    if (!user) {
+        window.location.href = "../login/index.html";
+        return;
+    }
 
     try {
-        await addDoc(collection(db, "members"), { name: name, email: email, password: password });
-        document.getElementById("memberName").value = "";
-        document.getElementById("memberMail").value = "";
-        document.getElementById("memberPassword").value = "";
+        const userDoc = await getDoc(doc(db, "members", user.uid));
+        
+        if (userDoc.exists() && userDoc.data().role === "admin") {
+            console.log("Admin logged in");
+            fetchMembers(); // Move fetch here after auth confirmation
+        } else {
+            alert("Access Denied! Only admins can access this page.");
+            window.location.href = "../member/index.html";
+        }
+    } catch (error) {
+        console.error("Error:", error);
+        window.location.href = "../login/index.html";
+    }
+});
+
+// Logout handler
+const logoutBtn = document.getElementById("logoutBtn");
+if (logoutBtn) {
+    logoutBtn.addEventListener("click", async () => {
+        try {
+            await signOut(auth);
+            window.location.href = "../login/index.html";
+        } catch (error) {
+            console.error("Logout failed:", error);
+        }
+    });
+}
+
+let selectedMemberId = null;
+
+// Member functions
+async function addMember() {
+    const name = document.getElementById("memberName").value.trim();
+    const email = document.getElementById("memberMail").value.trim();
+    const password = document.getElementById("memberPassword").value.trim();
+
+    if (!name || !email || !password) {
+        alert("Please fill all fields!");
+        return;
+    }
+
+    try {
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        await setDoc(doc(db, "members", userCredential.user.uid), {
+            uid: userCredential.user.uid,
+            name,
+            email,
+            role: "member",
+            createdAt: new Date()
+        });
+
+        // Clear form
+        ["memberName", "memberMail", "memberPassword"].forEach(id => 
+            document.getElementById(id).value = ""
+        );
+        
+        alert("Member added!");
         fetchMembers();
     } catch (error) {
-        console.error("Error adding member:", error);
+        alert(`Error: ${error.code?.replace('auth/', '') || error.message}`);
     }
 }
 
-// Function to fetch members
 async function fetchMembers() {
-    let list = document.getElementById("memberList");
-    list.innerHTML = "";
+    const list = document.getElementById("memberList");
+    if (!list) return;
+
+    list.innerHTML = "Loading...";
 
     try {
-        const querySnapshot = await getDocs(collection(db, "members"));
-        querySnapshot.forEach((docSnap) => {
-            let member = docSnap.data();
-            let memberId = docSnap.id;
-
+        const snapshot = await getDocs(collection(db, "members"));
+        list.innerHTML = ""; // Clear loading
+        
+        snapshot.forEach(doc => {
+            const member = doc.data();
             list.innerHTML += `
-                <li class="flex justify-between bg-gray-200 p-2 rounded">
+                <li class="member-item">
                     ${member.name} 
-                    <button onclick="deleteMember('${memberId}')" class="text-red-600">Delete</button>
-                    <button onclick="showBillForm('${memberId}')" class="bg-blue-500 text-white px-2 py-1 rounded">Bill</button>
+                    <button onclick="deleteMember('${doc.id}')">Delete</button>
+                    <button onclick="showBillForm('${doc.id}')">Bill</button>
                 </li>`;
         });
     } catch (error) {
-        console.error("Error fetching members:", error);
+        list.innerHTML = "Failed to load members";
+        console.error("Fetch error:", error);
     }
 }
 
-// Function to delete a member
 async function deleteMember(memberId) {
+    if (!confirm("Delete member and all associated data?")) return;
+    
     try {
+        // First delete Firestore data
         await deleteDoc(doc(db, "members", memberId));
+        
+        // Then delete authentication user (requires admin privileges)
+        // Note: Client-side deletion not recommended! Use Cloud Function instead
+        // const user = await auth.getUser(memberId);
+        // await deleteUser(user);
+        
         fetchMembers();
     } catch (error) {
-        console.error("Error deleting member:", error);
+        alert("Deletion failed: " + error.message);
     }
 }
 
-// Function to show the bill form
+// Billing functions
 function showBillForm(memberId) {
     selectedMemberId = memberId;
     document.getElementById("billForm").classList.remove("hidden");
 }
 
-// Function to generate a bill
 async function generateBill() {
-    if (!selectedMemberId) return alert("Select a member first!");
-    
-    let amount = document.getElementById("billAmount").value.trim();
-    if (amount === "" || amount <= 0) return alert("Enter a valid amount!");
+    const amountInput = document.getElementById("billAmount");
+    const amount = parseFloat(amountInput.value.trim());
+
+    if (!selectedMemberId || !amount || amount <= 0) {
+        alert("Invalid amount or member selection!");
+        return;
+    }
 
     try {
         await addDoc(collection(db, "members", selectedMemberId, "bills"), {
-            amount: Number(amount),
-            date: new Date().toISOString().split("T")[0], // YYYY-MM-DD format
-            status: "Pending",
+            amount,
+            date: new Date().toISOString(),
+            status: "pending"
         });
-
-        alert("Bill generated successfully!");
+        
+        amountInput.value = "";
         document.getElementById("billForm").classList.add("hidden");
-        document.getElementById("billAmount").value = "";
+        alert("Bill created!");
     } catch (error) {
-        console.error("Error generating bill:", error);
+        alert("Billing error: " + error.message);
     }
 }
 
-// Event listener for submitting the bill
-document.getElementById("submitBill").addEventListener("click", generateBill);
+// Event listeners
+document.getElementById('closeBillForm')?.addEventListener('click', () => {
+    document.getElementById('billForm').classList.add('hidden');
+});
 
-// Fetch members on page load
-document.addEventListener("DOMContentLoaded", fetchMembers);
+document.getElementById("submitBill")?.addEventListener("click", generateBill);
 
-// Make functions accessible globally
+// Global exposure
 window.addMember = addMember;
 window.deleteMember = deleteMember;
 window.showBillForm = showBillForm;

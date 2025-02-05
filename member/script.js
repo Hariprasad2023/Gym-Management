@@ -1,44 +1,28 @@
-import { auth, db } from "..firebase.js";
-import { signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-auth.js";
-import { collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js";
+import { auth } from "../firebase.js";
+import { signInWithEmailAndPassword, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-auth.js";
 
-// Function to check if the member exists in Firestore
-async function checkMember(email) {
-    const membersRef = collection(db, "members");
-    const q = query(membersRef, where("email", "==", email));
-    const querySnapshot = await getDocs(q);
+const emailInput = document.getElementById("email");
+const passwordInput = document.getElementById("password");
+const loginBtn = document.getElementById("login-btn");
+const errorMessage = document.getElementById("error-message");
 
-    return !querySnapshot.empty; // Returns true if member exists
-}
+loginBtn.addEventListener("click", async (e) => {
+  e.preventDefault(); // Prevent form submission
 
-// Function to handle login
-async function login(event) {
-    event.preventDefault(); // Prevent form from refreshing
+  const email = emailInput.value.trim();
+  const password = passwordInput.value.trim();
 
-    const email = document.getElementById("email").value.trim();
-    const password = document.getElementById("password").value.trim();
-    const errorMessage = document.getElementById("error-message");
-
-    if (!email || !password) {
-        errorMessage.textContent = "Please enter both email and password!";
-        return;
-    }
-
+  if (email && password) {
     try {
-        const isMember = await checkMember(email); // Check if email exists in Firestore
+      // Set persistence to keep the user logged in
+      await setPersistence(auth, browserLocalPersistence);
 
-        if (isMember) {
-            // Proceed with Firebase authentication
-            await signInWithEmailAndPassword(auth, email, password);
-            window.location.href = "member-dashboard.html"; // Redirect to member dashboard
-        } else {
-            errorMessage.textContent = "Member not found. Please check your email.";
-        }
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      window.location.href = "../member/dashboard.html"; // Redirect to admin page after login
     } catch (error) {
-        console.error("Login Error:", error);
-        errorMessage.textContent = "Login failed. Please try again.";
+      errorMessage.textContent = "Login failed: " + error.message;
     }
-}
-
-// Attach event listener to login button
-document.getElementById("login-btn").addEventListener("click", login);
+  } else {
+    errorMessage.textContent = "Please fill in all fields.";
+  }
+});
