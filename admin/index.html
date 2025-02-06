@@ -4,70 +4,108 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Panel</title>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.tailwindcss.com"></script>
     <script type="module" src="script.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap');
+        * { font-family: 'Poppins', sans-serif; }
+        .smooth-transition { transition: all 0.3s ease-in-out; }
+    </style>
 </head>
-<body class="bg-gray-100 p-6">
+<body class="bg-gradient-to-br from-gray-50 to-gray-200 min-h-screen p-6">
+    <div class="max-w-6xl mx-auto space-y-6">
+        <!-- Header Section -->
+        <div class="flex flex-col md:flex-row justify-between items-center bg-white p-6 rounded-xl shadow-lg">
+            <h2 class="text-3xl font-bold text-gray-800 mb-4 md:mb-0">
+                <i class="fas fa-user-shield text-blue-500 mr-2"></i>Admin Dashboard
+            </h2>
+            <button id="logoutBtn" class="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-lg font-semibold smooth-transition">
+                <i class="fas fa-sign-out-alt mr-2"></i>Logout
+            </button>
+        </div>
 
-    <div class="max-w-4xl mx-auto bg-white p-6 rounded-lg shadow-lg">
-        <h2 class="text-2xl font-bold mb-4 text-center">Admin Dashboard</h2>
+        <!-- Main Content Grid -->
+        <div class="grid md:grid-cols-2 gap-6">
+            <!-- Members Section -->
+            <div class="bg-white p-6 rounded-xl shadow-lg">
+                <h3 class="text-xl font-semibold mb-4 text-gray-700">
+                    <i class="fas fa-users text-blue-500 mr-2"></i>Member Management
+                </h3>
+                
+                <!-- Add Member Form -->
+                <div class="space-y-3 mb-6">
+                    <input id="memberName" type="text" placeholder="Member Name" 
+                           class="w-full p-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500">
+                    <input id="memberMail" type="email" placeholder="Email Address" 
+                           class="w-full p-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500">
+                    <input id="memberPassword" type="password" placeholder="Password" 
+                           class="w-full p-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500">
+                    <button onclick="addMember()" 
+                            class="w-full bg-blue-500 hover:bg-blue-600 text-white p-3 rounded-lg font-semibold smooth-transition">
+                        <i class="fas fa-user-plus mr-2"></i>Add Member
+                    </button>
+                </div>
 
-        <!-- Add Member Form -->
-        <!-- Add Member Form -->
-<div class="mb-4">
-    <input id="memberName" type="text" placeholder="Enter Member Name" class="w-full p-2 border rounded">
-    <input id="memberMail" type="email" placeholder="Enter Email ID" class="w-full p-2 border rounded mt-2">
-    <input id="memberPassword" type="password" placeholder="Enter Password" class="w-full p-2 border rounded mt-2">
-    <button onclick=addMember() id="addMemberBtn" class="mt-2 bg-blue-500 text-white px-4 py-2 rounded">Add Member</button>
-</div>
+                <!-- Members List -->
+                <div class="border-t-2 border-gray-100 pt-4">
+                    <h4 classtext-gray-600 font-medium mb-3">Active Members</h4>
+                    <ul id="memberList" class="space-y-2"></ul>
+                </div>
+            </div>
 
+            <!-- Actions Section -->
+            <div class="space-y-6">
+                <!-- Notifications Card -->
+                <div class="bg-white p-6 rounded-xl shadow-lg">
+                    <h3 class="text-xl font-semibold mb-4 text-gray-700">
+                        <i class="fas fa-bell text-yellow-500 mr-2"></i>Notifications
+                    </h3>
+                    <input id="notificationInput" type="text" placeholder="Enter notification message" 
+                           class="w-full p-3 border-2 border-gray-200 rounded-lg mb-3 focus:ring-2 focus:ring-yellow-500">
+                    <button id="addNotificationBtn" 
+                            class="w-full bg-yellow-500 hover:bg-yellow-600 text-white p-3 rounded-lg font-semibold smooth-transition">
+                        <i class="fas fa-bullhorn mr-2"></i>Post Notification
+                    </button>
+                </div>
 
-        <!-- Members List -->
-        <h3 class="text-lg font-semibold mb-2">Members</h3>
-        <ul id="memberList" class="list-none space-y-2"></ul>
+                <!-- Bill Generator Card -->
+                <div id="billForm" class="hidden bg-white p-6 rounded-xl shadow-lg relative">
+                    <button id="closeBillForm" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-times-circle text-xl"></i>
+                    </button>
+                    <h3 class="text-xl font-semibold mb-4 text-gray-700">
+                        <i class="fas fa-receipt text-green-500 mr-2"></i>Generate Bill
+                    </h3>
+                    <input type="number" id="billAmount" placeholder="Enter amount" 
+                           class="w-full p-3 border-2 border-gray-200 rounded-lg mb-3 focus:ring-2 focus:ring-green-500">
+                    <button id="submitBill" 
+                            class="w-full bg-green-500 hover:bg-green-600 text-white p-3 rounded-lg font-semibold smooth-transition">
+                        <i class="fas fa-file-invoice-dollar mr-2"></i>Create Bill
+                    </button>
+                </div>
 
-<!-- Bill Form -->
-<div id="billForm" class="hidden bg-gray-200 p-4 rounded mt-4 relative">
-    <h3 class="text-lg font-semibold">Generate Bill</h3>
-    <button id="closeBillForm" 
-            class="absolute top-2 right-2 bg-red-500 text-white px-2.5 py-1 rounded-full hover:bg-red-600"
-            aria-label="Close bill form">
-        &times;
-    </button>
-    <input type="number" id="billAmount" placeholder="Enter Amount" class="w-full p-2 border rounded mt-2">
-    <button id="submitBill" class="bg-green-500 text-white px-4 py-2 rounded mt-2 hover:bg-green-600">
-        Generate
-    </button>
-</div>
-
-<!-- Diet Plan Form -->
-<div id="dietForm" class="hidden bg-gray-200 p-4 rounded mt-4 relative">
-    <h3 class="text-lg font-semibold">Assign Diet Plan</h3>
-    <button id="closeDietForm" 
-            class="absolute top-2 right-2 bg-red-500 text-white px-2.5 py-1 rounded-full hover:bg-red-600"
-            aria-label="Close diet form">
-        &times;
-    </button>
-    <textarea id="dietDetails" placeholder="Enter diet plan" class="w-full p-2 border rounded mt-2"></textarea>
-    <button id="submitDiet" class="bg-green-500 text-white px-4 py-2 rounded mt-2 hover:bg-green-600">
-        Assign
-    </button>
-</div>
-
+                <!-- Diet Plan Card -->
+                <div id="dietForm" class="hidden bg-white p-6 rounded-xl shadow-lg relative">
+                    <button id="closeDietForm" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-times-circle text-xl"></i>
+                    </button>
+                    <h3 class="text-xl font-semibold mb-4 text-gray-700">
+                        <i class="fas fa-utensils text-purple-500 mr-2"></i>Diet Plans
+                    </h3>
+                    <textarea id="dietDetails" placeholder="Enter diet plan details..." 
+                              class="w-full p-3 border-2 border-gray-200 rounded-lg h-32 focus:ring-2 focus:ring-purple-500"></textarea>
+                    <button id="submitDiet" 
+                            class="w-full bg-purple-500 hover:bg-purple-600 text-white p-3 rounded-lg font-semibold smooth-transition mt-3">
+                        <i class="fas fa-check-circle mr-2"></i>Assign Plan
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
-    <h3 class="text-lg font-semibold mb-2">Post Notification</h3>
-<input id="notificationInput" type="text" placeholder="Enter notification" class="w-full p-2 border rounded">
-<button id="addNotificationBtn" class="mt-2 bg-blue-500 text-white px-4 py-2 rounded">Add Notification</button>
 
-    <div class="flex justify-center mb-4">
-        <button id="logoutBtn" class="bg-red-500 text-white px-6 py-3 rounded-lg font-semibold text-lg hover:bg-red-700 transition">
-            Logout
-        </button>
-    </div>
     <!-- Firebase Scripts -->
     <script type="module" src="../firebase.js"></script>
     <script type="module" src="script.js"></script>
-
 </body>
 </html>

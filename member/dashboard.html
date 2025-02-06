@@ -1,95 +1,129 @@
 <!DOCTYPE html>
-<html lang="en" class="h-full bg-gray-100">
+<html lang="en" class="h-full bg-gradient-to-br from-blue-50 to-purple-50">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Member Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        * { font-family: 'Inter', sans-serif; }
+        .animate-fade-in { animation: fadeIn 0.3s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    </style>
 </head>
 <body class="h-full">
     <div class="min-h-full">
         <!-- Navigation -->
-        <nav class="bg-gray-800">
+        <nav class="bg-gradient-to-r from-blue-600 to-purple-600 shadow-xl">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="flex items-center justify-between h-16">
-                    <div class="flex items-center">
-                        <div class="flex-shrink-0">
-                            <span class="text-white text-xl font-bold">Member Dashboard</span>
-                        </div>
+                    <div class="flex items-center space-x-3">
+                        <i class="fas fa-dumbbell text-white text-2xl"></i>
+                        <span class="text-white text-xl font-bold tracking-wide">FITNESS HUB</span>
                     </div>
-                    <div class="hidden md:block">
-                        <div class="ml-4 flex items-center md:ml-6">
-                            <button id="logoutBtn" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md flex items-center">
-                                <i class="fas fa-sign-out-alt mr-2"></i>
-                                Logout
-                            </button>
-                        </div>
-                    </div>
+                    <button id="logoutBtn" class="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-all duration-200">
+                        <i class="fas fa-sign-out-alt"></i>
+                        <span class="hidden sm:inline">Logout</span>
+                    </button>
                 </div>
             </div>
         </nav>
 
         <!-- Main Content -->
-        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
             <!-- Welcome Section -->
-            <div class="bg-white rounded-lg shadow mb-8 p-6">
-                <h2 class="text-2xl font-semibold text-gray-800">
-                    Welcome, <span id="memberName" class="text-blue-600">Loading...</span>
+            <div class="bg-gradient-to-r from-blue-500 to-purple-500 rounded-2xl shadow-xl p-6 text-white transform hover:scale-[1.01] transition-all duration-200">
+                <h2 class="text-2xl font-bold mb-2">
+                    Welcome back, <span id="memberName" class="bg-white/10 px-3 py-1 rounded-lg">Loading...</span>
                 </h2>
+                <p class="opacity-90">Your fitness journey starts here!</p>
+            </div>
+
+            <!-- Dashboard Grid -->
+            <div class="grid lg:grid-cols-3 gap-8">
+                <!-- Notifications Card -->
+                <div class="bg-white rounded-2xl shadow-xl p-6 lg:col-span-2">
+                    <div class="flex items-center mb-4 space-x-3">
+                        <i class="fas fa-bell text-yellow-500 text-xl"></i>
+                        <h3 class="text-lg font-semibold text-gray-800">Notifications</h3>
+                    </div>
+                    <ul id="notificationList" class="space-y-3">
+                        <li class="animate-fade-in bg-blue-50 p-4 rounded-xl flex items-center space-x-3">
+                            <i class="fas fa-info-circle text-blue-500"></i>
+                            <span>System notifications will appear here</span>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Diet Plan Card -->
+                <div class="bg-white rounded-2xl shadow-xl p-6">
+                    <div class="flex items-center mb-4 space-x-3">
+                        <i class="fas fa-utensils text-green-500 text-xl"></i>
+                        <h3 class="text-lg font-semibold text-gray-800">My Diet Plan</h3>
+                    </div>
+                    <ul id="dietList" class="space-y-3">
+                        <li class="animate-fade-in bg-green-50 p-4 rounded-xl">
+                            <div class="flex items-center space-x-3">
+                                <i class="fas fa-carrot text-green-600"></i>
+                                <span>Your personalized diet plan will appear here</span>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
             </div>
 
             <!-- Bills Section -->
-            <div class="bg-white rounded-lg shadow overflow-hidden">
-                <div class="px-6 py-4 border-b border-gray-200">
-                    <h3 class="text-lg font-medium text-gray-900">
-                        <i class="fas fa-file-invoice-dollar mr-2 text-blue-500"></i>
-                        Pending Bills
-                    </h3>
+            <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+                <div class="px-6 py-4 bg-gradient-to-r from-blue-50 to-purple-50">
+                    <div class="flex items-center space-x-3">
+                        <i class="fas fa-file-invoice-dollar text-purple-600 text-xl"></i>
+                        <h3 class="text-lg font-semibold text-gray-800">Payment Overview</h3>
+                    </div>
                 </div>
                 
-                <!-- Loading State -->
-                <div id="loadingState" class="p-6 text-center text-gray-500">
-                    <i class="fas fa-spinner fa-spin mr-2"></i>
-                    Loading bills...
+                <div id="loadingState" class="p-6 text-center text-gray-500 space-y-2">
+                    <i class="fas fa-spinner fa-spin text-2xl"></i>
+                    <p class="mt-2">Loading payment details...</p>
                 </div>
 
-                <!-- Bills List -->
-                <ul id="billsList" class="divide-y divide-gray-200">
-                    <!-- Bills will be dynamically inserted here -->
+                <ul id="billsList" class="divide-y divide-gray-100">
+                    <!-- Example Bill Item -->
+                    <li class="bill-item p-4 hover:bg-gray-50 transition-colors duration-200">
+                        <div class="flex justify-between items-center">
+                            <div class="space-y-1">
+                                <h4 class="font-medium text-gray-800">March Membership</h4>
+                                <p class="text-sm text-gray-500">Due 5 days ago</p>
+                            </div>
+                            <span class="bg-red-100 text-red-600 px-3 py-1 rounded-full text-sm">Overdue</span>
+                            <span class="text-gray-700 font-medium">$49.99</span>
+                        </div>
+                    </li>
                 </ul>
 
-                <!-- Error State -->
-                <div id="errorState" class="hidden p-6 text-center text-red-500">
-                    <i class="fas fa-exclamation-triangle mr-2"></i>
-                    <span class="error-message"></span>
+                <div id="errorState" class="hidden p-6 text-center space-y-2">
+                    <i class="fas fa-exclamation-triangle text-red-500 text-2xl"></i>
+                    <p class="text-red-500 font-medium error-message"></p>
                 </div>
             </div>
-            <h3 class="text-lg font-semibold mb-2">Notifications</h3>
-<ul id="notificationList" class="list-none space-y-2"></ul>
-<h3 class="text-lg font-semibold mb-2">My Diet Plan</h3>
-<ul id="dietList" class="list-none space-y-2"></ul>
-
         </main>
-        
-
     </div>
 
-    <!-- Firebase SDK -->
-    <script type="module" src="dashboard.js"></script> <!-- Replace with your actual JS file path -->
+    <script type="module" src="dashboard.js"></script>
 
     <style>
         .bill-item {
-            transition: all 0.2s ease;
-            padding: 1.5rem;
+            animation: slideIn 0.3s ease-out;
         }
-        .bill-item:hover {
-            background-color: #f8fafc;
+        @keyframes slideIn {
+            from { transform: translateX(-10px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
         }
-        .no-bills {
-            padding: 2rem;
-            text-align: center;
-            color: #6b7280;
+        .status-badge {
+            font-size: 0.75rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 1rem;
         }
     </style>
 </body>
