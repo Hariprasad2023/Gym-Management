@@ -27,7 +27,7 @@ onAuthStateChanged(auth, async (user) => {
         console.error("Error details:", error);
         alert(`Error: ${error.message}`);
         await signOut(auth);
-        window.location.href = "../member/index.html";
+        window.location.href = "../login/index.html";
     }
 });
 
@@ -126,14 +126,14 @@ async function handleMissingDocument(user) {
     // Add temporary logout to prevent infinite loop
     await signOut(auth);
     alert("Account configuration error - please contact support");
-    window.location.href = "../member/index.html";
+    window.location.href = "../login/index.html";
 }
 
 // Safe logout handler
 document.getElementById("logoutBtn")?.addEventListener("click", async () => {
     try {
         await signOut(auth);
-        window.location.href = "../member/index.html";
+        window.location.href = "../login/index.html";
     } catch (error) {
         console.error("Logout failed:", error);
         alert("Logout failed - please try again");
