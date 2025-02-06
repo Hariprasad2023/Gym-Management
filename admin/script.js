@@ -121,23 +121,56 @@ async function fetchMembers() {
     const list = document.getElementById("memberList");
     if (!list) return;
 
-    list.innerHTML = "Loading...";
+    list.innerHTML = "<p class='text-gray-500'>Loading...</p>";
 
     try {
         const snapshot = await getDocs(collection(db, "members"));
-        list.innerHTML = ""; // Clear loading
-        
-        snapshot.forEach(doc => {
-            const member = doc.data();
-            list.innerHTML += `
-                <li class="member-item">
-                    ${member.name} 
-                    <button onclick="deleteMember('${doc.id}')">Delete</button>
-                    <button onclick="showBillForm('${doc.id}')">Bill</button>
-                </li>`;
+        list.innerHTML = ""; // Clear previous content
+
+        if (snapshot.empty) {
+            list.innerHTML = "<p class='text-red-500'>No members found</p>";
+            return;
+        }
+
+        snapshot.forEach(docSnap => {
+            const member = docSnap.data();
+            const memberId = docSnap.id;
+
+            // Create list item
+            const listItem = document.createElement("li");
+            listItem.className = "bg-gray-100 p-4 rounded shadow flex justify-between items-center mb-2";
+
+            // Member Name
+            const memberName = document.createElement("span");
+            memberName.textContent = member.name || "Unnamed Member";
+
+            // Delete Button
+            const deleteBtn = document.createElement("button");
+            deleteBtn.textContent = "Delete";
+            deleteBtn.className = "bg-red-500 text-white px-3 py-1 rounded hover:bg-red-700";
+            deleteBtn.onclick = () => deleteMember(memberId);
+
+            // Bill Button
+            const billBtn = document.createElement("button");
+            billBtn.textContent = "Bill";
+            billBtn.className = "bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-700";
+            billBtn.onclick = () => showBillForm(memberId);
+
+            // Diet Button
+            const dietBtn = document.createElement("button");
+            dietBtn.textContent = "Diet";
+            dietBtn.className = "bg-green-500 text-white px-3 py-1 rounded hover:bg-green-700";
+            dietBtn.onclick = () => showDietForm(memberId);
+
+            // Append elements
+            listItem.appendChild(memberName);
+            listItem.appendChild(deleteBtn);
+            listItem.appendChild(billBtn);
+            listItem.appendChild(dietBtn);
+            list.appendChild(listItem);
         });
     } catch (error) {
-        list.innerHTML = "Failed to load members";
+        list.innerHTML = "<p class='text-red-500'>Failed to load members</p>";
         console.error("Fetch error:", error);
     }
 }
@@ -189,6 +222,51 @@ async function generateBill() {
         alert("Billing error: " + error.message);
     }
 }
+//adding diet plan
+function showDietForm(memberId) {
+    const dietForm = document.getElementById("dietForm");
+    if (!dietForm) return;
+
+    dietForm.classList.remove("hidden"); // Show the form
+    dietForm.dataset.memberId = memberId; // Store the member ID for later use
+
+    // Clear previous input
+    document.getElementById("dietDetails").value = "";
+
+    // Close button event
+    document.getElementById("closeDietForm").addEventListener("click", () => {
+        dietForm.classList.add("hidden");
+    });
+}
+
+document.getElementById("submitDiet").addEventListener("click", async () => {
+    const dietForm = document.getElementById("dietForm");
+    const memberId = dietForm.dataset.memberId;
+    const dietDetails = document.getElementById("dietDetails").value.trim();
+
+    if (!memberId || !dietDetails) {
+        alert("Invalid diet details or member selection!");
+        return;
+    }
+
+    try {
+        const dietId = new Date().getTime().toString();
+        console.log("Assigning diet to member:", memberId);
+        await setDoc(doc(db, "members", memberId, "diet",dietId), {
+            details: dietDetails,
+            date: new Date().toISOString()
+        });
+
+        document.getElementById("dietDetails").value = "";
+        dietForm.classList.add("hidden");
+        alert("Diet assigned successfully!");
+    } catch (error) {
+        alert("Error assigning diet: " + error.message);
+    }
+});
+
+
+
 
 // Event listeners
 document.getElementById('closeBillForm')?.addEventListener('click', () => {
@@ -201,3 +279,4 @@ document.getElementById("submitBill")?.addEventListener("click", generateBill);
 window.addMember = addMember;
 window.deleteMember = deleteMember;
 window.showBillForm = showBillForm;
+window.showDietForm = showDietForm;

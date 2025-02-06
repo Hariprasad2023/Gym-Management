@@ -1,6 +1,6 @@
 import { db, auth } from "../firebase.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-auth.js";
-import { getDoc, doc, collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js";
+import { getDoc, doc, collection, getDocs, query, where,onSnapshot,orderBy } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js";
 
 // Enhanced auth state handler
 onAuthStateChanged(auth, async (user) => {
@@ -30,7 +30,69 @@ onAuthStateChanged(auth, async (user) => {
         window.location.href = "../login/index.html";
     }
 });
+//fetching notifications
+const notificationList = document.getElementById("notificationList");
 
+// Real-time listener for notifications
+const q = query(collection(db, "notifications"), orderBy("timestamp", "desc"));
+onSnapshot(q, (snapshot) => {
+    notificationList.innerHTML = ""; // Clear previous notifications
+    snapshot.forEach((doc) => {
+        const notification = doc.data();
+        
+        // Create list item container
+        const listItem = document.createElement("li");
+        listItem.className = "bg-white shadow-md p-4 rounded-lg mb-3 flex items-center border-l-4 border-blue-500";
+        
+        // Create message text
+        const messageText = document.createElement("span");
+        messageText.className = "text-gray-800 font-medium";
+        messageText.textContent = notification.message;
+    
+        // Append elements
+        listItem.appendChild(messageText);
+        notificationList.appendChild(listItem);
+    });
+});
+//fetching diet details
+async function fetchMemberDiet() {
+    const dietList = document.getElementById("dietList");
+    if (!dietList) return;
+
+    dietList.innerHTML = "Loading...";
+
+    onAuthStateChanged(auth, async (user) => {
+        if (!user) {
+            dietList.innerHTML = "Not logged in.";
+            return;
+        }
+
+        try {
+            const dietCollection = collection(db, "members", user.uid, "diet");
+            const dietSnapshot = await getDocs(dietCollection);
+            
+            dietList.innerHTML = ""; // Clear previous data
+
+            if (dietSnapshot.empty) {
+                dietList.innerHTML = "<p>No diet assigned.</p>";
+                return;
+            }
+
+            dietSnapshot.forEach((dietDoc) => {
+                const dietData = dietDoc.data();
+                dietList.innerHTML += `
+                    <li class="p-2 bg-gray-200 rounded mb-2">
+                        <strong>Meal:</strong> ${dietData.details || "N/A"} <br>
+                        <strong>Date:</strong> ${new Date(dietData.date).toLocaleDateString()}
+                    </li>`;
+            });
+
+        } catch (error) {
+            dietList.innerHTML = "Error fetching diet details.";
+            console.error("Diet fetch error:", error);
+        }
+    });
+}
 // Enhanced initialization
 async function initializeDashboard(userData) {
     console.log("Initializing dashboard for:", userData);
@@ -139,3 +201,4 @@ document.getElementById("logoutBtn")?.addEventListener("click", async () => {
         alert("Logout failed - please try again");
     }
 });
+fetchMemberDiet();
