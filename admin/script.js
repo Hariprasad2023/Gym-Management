@@ -1,7 +1,12 @@
 import { db, auth } from "../firebase.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-auth.js";
-import { createUserWithEmailAndPassword, deleteUser } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-auth.js";
-import { collection, addDoc, getDocs, deleteDoc, doc, getDoc, setDoc,serverTimestamp } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js";
+import { createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-auth.js";
+import { collection, addDoc, getDocs, deleteDoc, doc, getDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js";
+
+// DOM Element References
+const addNotificationBtn = document.getElementById("addNotificationBtn");
+const logoutBtn = document.getElementById("logoutBtn");
+let selectedMemberId = null;
 
 // Check auth state and admin status
 onAuthStateChanged(auth, async (user) => {
@@ -15,19 +20,44 @@ onAuthStateChanged(auth, async (user) => {
         
         if (userDoc.exists() && userDoc.data().role === "admin") {
             console.log("Admin logged in");
-            fetchMembers(); // Move fetch here after auth confirmation
+            fetchMembers();
         } else {
             alert("Access Denied! Only admins can access this page.");
             window.location.href = "../member/index.html";
         }
     } catch (error) {
-        console.error("Error:", error);
+        console.error("Auth error:", error);
         window.location.href = "../login/index.html";
     }
 });
 
-// Logout handler
-const logoutBtn = document.getElementById("logoutBtn");
+// Notification Handler
+if (addNotificationBtn) {
+    addNotificationBtn.addEventListener("click", async () => {
+        const message = notificationInput.value.trim();
+
+        if (!message) {
+            alert("Please enter a notification message.");
+            return;
+        }
+
+        try {
+            // Use auto-generated ID instead of timestamp
+            await addDoc(collection(db, "notifications"), {
+                message: message,
+                timestamp: serverTimestamp(),
+            });
+
+            notificationInput.value = "";
+            alert("Notification added successfully!");
+        } catch (error) {
+            console.error("Notification error:", error);
+            alert("Error adding notification: " + error.message);
+        }
+    });
+}
+
+// Logout Handler
 if (logoutBtn) {
     logoutBtn.addEventListener("click", async () => {
         try {
@@ -35,56 +65,12 @@ if (logoutBtn) {
             window.location.href = "../login/index.html";
         } catch (error) {
             console.error("Logout failed:", error);
+            alert("Logout failed: " + error.message);
         }
     });
 }
-//notification handler
-addNotificationBtn.addEventListener("click", async () => {
-    const message = notificationInput.value.trim();
 
-    if (message) {
-        try {
-            const user = auth.currentUser;
-
-            if (user) {
-                // Fetch user data from Firestore to check role
-                const userRef = doc(db, "members", user.uid);
-                const userSnap = await getDoc(userRef);
-                
-                if (userSnap.exists()) {
-                    const userData = userSnap.data();
-                    if (userData.role === "admin") {
-                        // Admin can add notifications
-                        const notificationId = new Date().getTime().toString(); // You can create a unique ID based on timestamp
-                        const notificationRef = doc(db, "notifications", notificationId);
-
-                        await setDoc(notificationRef, {
-                            message: message,
-                            timestamp: serverTimestamp(),
-                        });
-
-                        alert("Notification added successfully!");
-                        notificationInput.value = ""; // Clear input after adding
-                    } else {
-                        alert("You do not have permission to add notifications.");
-                    }
-                } else {
-                    alert("User data not found in Firestore.");
-                }
-            }
-        } catch (error) {
-            console.error("Error adding notification:", error);
-            alert("Error adding notification: " + error.message);
-        }
-    } else {
-        alert("Please enter a notification message.");
-    }
-});
-
-
-let selectedMemberId = null;
-
-// Member functions
+// Member Functions
 async function addMember() {
     const name = document.getElementById("memberName").value.trim();
     const email = document.getElementById("memberMail").value.trim();
@@ -97,106 +83,109 @@ async function addMember() {
 
     try {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        
         await setDoc(doc(db, "members", userCredential.user.uid), {
             uid: userCredential.user.uid,
             name,
             email,
             role: "member",
-            createdAt: new Date()
+            createdAt: serverTimestamp()
         });
 
         // Clear form
-        ["memberName", "memberMail", "memberPassword"].forEach(id => 
-            document.getElementById(id).value = ""
-        );
+        ["memberName", "memberMail", "memberPassword"].forEach(id => {
+            document.getElementById(id).value = "";
+        });
         
-        alert("Member added!");
+        alert("Member added successfully!");
         fetchMembers();
     } catch (error) {
+        console.error("Add member error:", error);
         alert(`Error: ${error.code?.replace('auth/', '') || error.message}`);
     }
 }
 
+// Improved fetchMembers with error handling
 async function fetchMembers() {
     const list = document.getElementById("memberList");
     if (!list) return;
 
-    list.innerHTML = "<p class='text-gray-500'>Loading...</p>";
-
     try {
+        list.innerHTML = "<li class='p-3 text-gray-500'>Loading members...</li>";
         const snapshot = await getDocs(collection(db, "members"));
-        list.innerHTML = ""; // Clear previous content
+        list.innerHTML = "";
 
         if (snapshot.empty) {
-            list.innerHTML = "<p class='text-red-500'>No members found</p>";
+            list.innerHTML = "<li class='p-3 text-gray-500'>No members found</li>";
             return;
         }
 
         snapshot.forEach(docSnap => {
             const member = docSnap.data();
-            const memberId = docSnap.id;
-
-            // Create list item
-            const listItem = document.createElement("li");
-            listItem.className = "bg-gray-100 p-4 rounded shadow flex justify-between items-center mb-2";
-
-            // Member Name
-            const memberName = document.createElement("span");
-            memberName.textContent = member.name || "Unnamed Member";
-
-            // Delete Button
-            const deleteBtn = document.createElement("button");
-            deleteBtn.textContent = "Delete";
-            deleteBtn.className = "bg-red-500 text-white px-3 py-1 rounded hover:bg-red-700";
-            deleteBtn.onclick = () => deleteMember(memberId);
-
-            // Bill Button
-            const billBtn = document.createElement("button");
-            billBtn.textContent = "Bill";
-            billBtn.className = "bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-700";
-            billBtn.onclick = () => showBillForm(memberId);
-
-            // Diet Button
-            const dietBtn = document.createElement("button");
-            dietBtn.textContent = "Diet";
-            dietBtn.className = "bg-green-500 text-white px-3 py-1 rounded hover:bg-green-700";
-            dietBtn.onclick = () => showDietForm(memberId);
-
-            // Append elements
-            listItem.appendChild(memberName);
-            listItem.appendChild(deleteBtn);
-            listItem.appendChild(billBtn);
-            listItem.appendChild(dietBtn);
+            const listItem = createMemberListItem(member, docSnap.id);
             list.appendChild(listItem);
         });
     } catch (error) {
-        list.innerHTML = "<p class='text-red-500'>Failed to load members</p>";
-        console.error("Fetch error:", error);
+        console.error("Fetch members error:", error);
+        list.innerHTML = "<li class='p-3 text-red-500'>Error loading members</li>";
     }
 }
 
+function createMemberListItem(member, memberId) {
+    const listItem = document.createElement("li");
+    listItem.className = "bg-gray-100 p-4 rounded shadow flex flex-col sm:flex-row justify-between items-center mb-2 space-y-2 sm:space-y-0";
+
+    const memberInfo = document.createElement("div");
+    memberInfo.className = "flex-1";
+    memberInfo.innerHTML = `
+        <span class="font-medium">${member.name || "Unnamed Member"}</span>
+        <span class="text-sm text-gray-500 block sm:inline">(${member.email})</span>
+    `;
+
+    const buttonGroup = document.createElement("div");
+    buttonGroup.className = "flex space-x-2";
+
+    const deleteBtn = createButton("Delete", "red", () => deleteMember(memberId));
+    const billBtn = createButton("Bill", "blue", () => showBillForm(memberId));
+    const dietBtn = createButton("Diet", "green", () => showDietForm(memberId));
+
+    buttonGroup.append(deleteBtn, billBtn, dietBtn);
+    listItem.append(memberInfo, buttonGroup);
+
+    return listItem;
+}
+
+function createButton(text, color, onClick) {
+    const btn = document.createElement("button");
+    btn.textContent = text;
+    btn.className = `bg-${color}-500 hover:bg-${color}-700 text-white px-3 py-1 rounded transition-colors`;
+    btn.onclick = onClick;
+    return btn;
+}
+
+// Delete Member with confirmation
 async function deleteMember(memberId) {
-    if (!confirm("Delete member and all associated data?")) return;
+    if (!confirm("Permanently delete this member and all associated data?")) return;
     
     try {
-        // First delete Firestore data
         await deleteDoc(doc(db, "members", memberId));
-        
-        // Then delete authentication user (requires admin privileges)
-        // Note: Client-side deletion not recommended! Use Cloud Function instead
-        // const user = await auth.getUser(memberId);
-        // await deleteUser(user);
-        
+        // Note: Add Cloud Function to delete auth user
         fetchMembers();
+        alert("Member deleted successfully");
     } catch (error) {
+        console.error("Delete error:", error);
         alert("Deletion failed: " + error.message);
     }
 }
 
-// Billing functions
+// Bill Functions
 function showBillForm(memberId) {
     selectedMemberId = memberId;
-    document.getElementById("billForm").classList.remove("hidden");
+    const billForm = document.getElementById("billForm");
+    if (billForm) {
+        billForm.classList.remove("hidden");
+        document.getElementById("billAmount").value = "";
+    }
 }
 
 async function generateBill() {
@@ -204,79 +193,74 @@ async function generateBill() {
     const amount = parseFloat(amountInput.value.trim());
 
     if (!selectedMemberId || !amount || amount <= 0) {
-        alert("Invalid amount or member selection!");
+        alert("Please enter a valid amount");
         return;
     }
 
     try {
         await addDoc(collection(db, "members", selectedMemberId, "bills"), {
-            amount,
-            date: new Date().toISOString(),
+            amount: amount,
+            date: serverTimestamp(),
             status: "pending"
         });
         
         amountInput.value = "";
         document.getElementById("billForm").classList.add("hidden");
-        alert("Bill created!");
+        alert("Bill generated successfully!");
     } catch (error) {
+        console.error("Billing error:", error);
         alert("Billing error: " + error.message);
     }
 }
-//adding diet plan
+
+// Diet Plan Functions
 function showDietForm(memberId) {
     const dietForm = document.getElementById("dietForm");
     if (!dietForm) return;
 
-    dietForm.classList.remove("hidden"); // Show the form
-    dietForm.dataset.memberId = memberId; // Store the member ID for later use
-
-    // Clear previous input
+    dietForm.classList.remove("hidden");
+    dietForm.dataset.memberId = memberId;
     document.getElementById("dietDetails").value = "";
 
-    // Close button event
+    // Clean up previous listeners
+    const closeBtn = document.getElementById("closeDietForm");
+    closeBtn.replaceWith(closeBtn.cloneNode(true));
+    
     document.getElementById("closeDietForm").addEventListener("click", () => {
         dietForm.classList.add("hidden");
     });
 }
 
-document.getElementById("submitDiet").addEventListener("click", async () => {
+document.getElementById("submitDiet")?.addEventListener("click", async () => {
     const dietForm = document.getElementById("dietForm");
-    const memberId = dietForm.dataset.memberId;
+    const memberId = dietForm?.dataset.memberId;
     const dietDetails = document.getElementById("dietDetails").value.trim();
 
     if (!memberId || !dietDetails) {
-        alert("Invalid diet details or member selection!");
+        alert("Please enter diet details");
         return;
     }
 
     try {
-        const dietId = new Date().getTime().toString();
-        console.log("Assigning diet to member:", memberId);
-        await setDoc(doc(db, "members", memberId, "diet",dietId), {
+        await addDoc(collection(db, "members", memberId, "dietPlans"), {
             details: dietDetails,
-            date: new Date().toISOString()
+            date: serverTimestamp()
         });
 
-        document.getElementById("dietDetails").value = "";
         dietForm.classList.add("hidden");
-        alert("Diet assigned successfully!");
+        alert("Diet plan assigned successfully!");
     } catch (error) {
+        console.error("Diet plan error:", error);
         alert("Error assigning diet: " + error.message);
     }
 });
 
-
-
-
-// Event listeners
+// Event Listeners
 document.getElementById('closeBillForm')?.addEventListener('click', () => {
     document.getElementById('billForm').classList.add('hidden');
 });
 
 document.getElementById("submitBill")?.addEventListener("click", generateBill);
 
-// Global exposure
-window.addMember = addMember;
-window.deleteMember = deleteMember;
-window.showBillForm = showBillForm;
-window.showDietForm = showDietForm;
+// Prevent global exposure - use proper event listeners instead
+// Remove window.* exposures and use event listeners in your HTML
