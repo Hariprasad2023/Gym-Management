@@ -1,7 +1,7 @@
 import { db, auth } from "../firebase.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-auth.js";
 import { createUserWithEmailAndPassword, deleteUser } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-auth.js";
-import { collection, addDoc, getDocs, deleteDoc, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js";
+import { collection, addDoc, getDocs, deleteDoc, doc, getDoc, setDoc,serverTimestamp } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js";
 
 // Check auth state and admin status
 onAuthStateChanged(auth, async (user) => {
@@ -38,6 +38,49 @@ if (logoutBtn) {
         }
     });
 }
+//notification handler
+addNotificationBtn.addEventListener("click", async () => {
+    const message = notificationInput.value.trim();
+
+    if (message) {
+        try {
+            const user = auth.currentUser;
+
+            if (user) {
+                // Fetch user data from Firestore to check role
+                const userRef = doc(db, "members", user.uid);
+                const userSnap = await getDoc(userRef);
+                
+                if (userSnap.exists()) {
+                    const userData = userSnap.data();
+                    if (userData.role === "admin") {
+                        // Admin can add notifications
+                        const notificationId = new Date().getTime().toString(); // You can create a unique ID based on timestamp
+                        const notificationRef = doc(db, "notifications", notificationId);
+
+                        await setDoc(notificationRef, {
+                            message: message,
+                            timestamp: serverTimestamp(),
+                        });
+
+                        alert("Notification added successfully!");
+                        notificationInput.value = ""; // Clear input after adding
+                    } else {
+                        alert("You do not have permission to add notifications.");
+                    }
+                } else {
+                    alert("User data not found in Firestore.");
+                }
+            }
+        } catch (error) {
+            console.error("Error adding notification:", error);
+            alert("Error adding notification: " + error.message);
+        }
+    } else {
+        alert("Please enter a notification message.");
+    }
+});
+
 
 let selectedMemberId = null;
 
