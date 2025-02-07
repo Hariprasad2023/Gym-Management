@@ -80,10 +80,17 @@ async function fetchMemberDiet() {
 
             dietSnapshot.forEach((dietDoc) => {
                 const dietData = dietDoc.data();
+                let formattedDate = "Unknown Date";
+
+    if (dietData.date && dietData.date.toDate) {
+        formattedDate = dietData.date.toDate().toLocaleDateString();
+    } else if (dietData.date && dietData.date.seconds) {
+        formattedDate = new Date(dietData.date.seconds * 1000).toLocaleDateString();
+    }
                 dietList.innerHTML += `
                     <li class="p-2 bg-gray-200 rounded mb-2">
                         <strong>Meal:</strong> ${dietData.details || "N/A"} <br>
-                       <strong>Date:</strong> ${dietData.date?.toDate().toLocaleDateString()} <br>
+                       <strong>Date:</strong> ${formattedDate} <br>
                     </li>`;
             });
 
@@ -132,9 +139,10 @@ async function fetchBills(uid) {
 function renderBills(bills) {
     const billsList = document.getElementById("billsList");
     if (!billsList) return;
-
     billsList.innerHTML = bills.length > 0 
-    ? bills.map(bill => `
+    ? bills.map(bill =>
+      
+     `
         <li class="bill-item mb-4 p-6 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow">
             <div class="flex items-center justify-between">
                 <div class="flex items-center space-x-4">
