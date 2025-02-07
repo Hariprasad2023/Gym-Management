@@ -1,16 +1,52 @@
+// Consolidated imports
 import { db, auth } from "../firebase.js";
-import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-auth.js";
-import { createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-auth.js";
-import { collection, addDoc, getDocs, deleteDoc, doc, getDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js";
+import { 
+    onAuthStateChanged, 
+    signOut, 
+    createUserWithEmailAndPassword,
+    signInWithEmailAndPassword
+} from "https://www.gstatic.com/firebasejs/10.1.0/firebase-auth.js";
+import { 
+    collection, 
+    addDoc, 
+    getDocs, 
+    deleteDoc, 
+    doc, 
+    getDoc, 
+    setDoc, 
+    serverTimestamp 
+} from "https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js";
 
-// DOM Element References
-const addNotificationBtn = document.getElementById("addNotificationBtn");
-const logoutBtn = document.getElementById("logoutBtn");
+// Utility functions
+const showError = (error, context) => {
+    console.error(`${context}:`, error);
+    alert(`${context}: ${error.message}`);
+};
+
+const setLoading = (element, isLoading) => {
+    if (!element) return;
+    element.disabled = isLoading;
+    element.innerHTML = isLoading ? 
+        '<i class="fas fa-spinner fa-spin"></i> Loading...' : 
+        element.dataset.originalText || element.textContent;
+};
+
+// DOM Elements
+const elements = {
+    addNotificationBtn: document.getElementById("addNotificationBtn"),
+    logoutBtn: document.getElementById("logoutBtn"),
+    addMemberBtn: document.getElementById("addMemberBtn"),
+    notificationInput: document.getElementById("notificationInput"),
+    billForm: document.getElementById("billForm"),
+    dietForm: document.getElementById("dietForm")
+};
+
+
 let selectedMemberId = null;
 
-// Check auth state and admin status
+// Auth state observer
 onAuthStateChanged(auth, async (user) => {
-    if (!user) {
+   if (!user) {
         window.location.href = "../login/index.html";
         return;
     }
@@ -21,97 +57,110 @@ onAuthStateChanged(auth, async (user) => {
         if (userDoc.exists() && userDoc.data().role === "admin") {
             console.log("Admin logged in");
             fetchMembers();
-        } else {
-            alert("Access Denied! Only admins can access this page.");
-            window.location.href = "../member/index.html";
+        } 
+        else {
+            alert("Login session completed. Please log in again as an admin.");
+            window.location.href = "../login/index.html";
+          
+
+            
         }
     } catch (error) {
-        console.error("Auth error:", error);
+        showError(error, "Authentication error");
         window.location.href = "../login/index.html";
     }
 });
 
-// Notification Handler
-if (addNotificationBtn) {
-    addNotificationBtn.addEventListener("click", async () => {
-        const message = notificationInput.value.trim();
+// Notification handler
+elements.addNotificationBtn?.addEventListener("click", async () => {
+    const message = elements.notificationInput?.value.trim();
+    if (!message) {
+        alert("Please enter a notification message.");
+        return;
+    }
 
-        if (!message) {
-            alert("Please enter a notification message.");
-            return;
-        }
+    setLoading(elements.addNotificationBtn, true);
+    try {
+        await addDoc(collection(db, "notifications"), {
+            message,
+            timestamp: serverTimestamp(),
+        });
+        elements.notificationInput.value = "";
+        alert("Notification added successfully!");
+    } catch (error) {
+        showError(error, "Notification error");
+    } finally {
+        setLoading(elements.addNotificationBtn, false);
+    }
+});
 
-        try {
-            // Use auto-generated ID instead of timestamp
-            await addDoc(collection(db, "notifications"), {
-                message: message,
-                timestamp: serverTimestamp(),
-            });
-
-            notificationInput.value = "";
-            alert("Notification added successfully!");
-        } catch (error) {
-            console.error("Notification error:", error);
-            alert("Error adding notification: " + error.message);
-        }
-    });
-}
-
-// Logout Handler
-if (logoutBtn) {
-    logoutBtn.addEventListener("click", async () => {
-        try {
-            await signOut(auth);
-            window.location.href = "../login/index.html";
-        } catch (error) {
-            console.error("Logout failed:", error);
-            alert("Logout failed: " + error.message);
-        }
-    });
-}
-
-// Member Functions
+// Member management functions
 async function addMember() {
-    const name = document.getElementById("memberName").value.trim();
-    const email = document.getElementById("memberMail").value.trim();
-    const password = document.getElementById("memberPassword").value.trim();
+    const name = document.getElementById("memberName")?.value.trim();
+    const email = document.getElementById("memberMail")?.value.trim();
+    const password = document.getElementById("memberPassword")?.value.trim();
 
     if (!name || !email || !password) {
         alert("Please fill all fields!");
         return;
     }
 
+    const addMemberBtn = document.getElementById("addMemberBtn");
+    addMemberBtn.disabled = true; // Disable button while processing
+
     try {
+        const currentAdmin = auth.currentUser;
+        const adminEmail = currentAdmin.email;
+        const adminPassword = prompt("Re-enter admin password to confirm:");
+
+        if (!adminPassword) {
+            alert("Admin password required!");
+            addMemberBtn.disabled = false;
+            return;
+        }
+
+        // Create new member in Firebase Auth
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        
-        await setDoc(doc(db, "members", userCredential.user.uid), {
-            uid: userCredential.user.uid,
+        const userId = userCredential.user.uid;
+
+        console.log("User created:", userId); // ✅ Debugging log
+
+        // Store member data in Firestore BEFORE sign-out
+        await setDoc(doc(db, "members", userId), {
+            uid: userId,
             name,
             email,
             role: "member",
-            createdAt: serverTimestamp()
+            createdAt: serverTimestamp(),
         });
 
-        // Clear form
-        ["memberName", "memberMail", "memberPassword"].forEach(id => {
-            document.getElementById(id).value = "";
-        });
-        
+        console.log("User added to Firestore:", userId); // ✅ Debugging log
+
+        // Sign out the new user (important)
+        await signOut(auth);
+
+        // Sign back in as admin
+        await signInWithEmailAndPassword(auth, adminEmail, adminPassword);
+        console.log("Signed back in as admin");
+
         alert("Member added successfully!");
-        fetchMembers();
+        fetchMembers(); // Refresh members list
     } catch (error) {
         console.error("Add member error:", error);
-        alert(`Error: ${error.code?.replace('auth/', '') || error.message}`);
+        alert("Error: " + (error.code?.replace("auth/", "") || error.message));
+    } finally {
+        addMemberBtn.disabled = false;
     }
 }
 
-// Improved fetchMembers with error handling
+
 async function fetchMembers() {
     const list = document.getElementById("memberList");
     if (!list) return;
 
+    list.innerHTML = "<li class='p-3 text-gray-500'>Loading members...</li>";
+
     try {
-        list.innerHTML = "<li class='p-3 text-gray-500'>Loading members...</li>";
         const snapshot = await getDocs(collection(db, "members"));
         list.innerHTML = "";
 
@@ -120,64 +169,16 @@ async function fetchMembers() {
             return;
         }
 
-        snapshot.forEach(docSnap => {
-            const member = docSnap.data();
-            const listItem = createMemberListItem(member, docSnap.id);
+        snapshot.forEach(doc => {
+            const member = doc.data();
+            const listItem = createMemberListItem(member, doc.id);
             list.appendChild(listItem);
         });
     } catch (error) {
-        console.error("Fetch members error:", error);
+        showError(error, "Fetch members error");
         list.innerHTML = "<li class='p-3 text-red-500'>Error loading members</li>";
     }
 }
-
-function createMemberListItem(member, memberId) {
-    const listItem = document.createElement("li");
-    listItem.className = "bg-gray-100 p-4 rounded shadow flex flex-col sm:flex-row justify-between items-center mb-2 space-y-2 sm:space-y-0";
-
-    const memberInfo = document.createElement("div");
-    memberInfo.className = "flex-1";
-    memberInfo.innerHTML = `
-        <span class="font-medium">${member.name || "Unnamed Member"}</span>
-        <span class="text-sm text-gray-500 block sm:inline">(${member.email})</span>
-    `;
-
-    const buttonGroup = document.createElement("div");
-    buttonGroup.className = "flex space-x-2";
-
-    const deleteBtn = createButton("Delete", "red", () => deleteMember(memberId));
-    const billBtn = createButton("Bill", "blue", () => showBillForm(memberId));
-    const dietBtn = createButton("Diet", "green", () => showDietForm(memberId));
-
-    buttonGroup.append(deleteBtn, billBtn, dietBtn);
-    listItem.append(memberInfo, buttonGroup);
-
-    return listItem;
-}
-
-function createButton(text, color, onClick) {
-    const btn = document.createElement("button");
-    btn.textContent = text;
-    btn.className = `bg-${color}-500 hover:bg-${color}-700 text-white px-3 py-1 rounded transition-colors`;
-    btn.onclick = onClick;
-    return btn;
-}
-
-// Delete Member with confirmation
-async function deleteMember(memberId) {
-    if (!confirm("Permanently delete this member and all associated data?")) return;
-    
-    try {
-        await deleteDoc(doc(db, "members", memberId));
-        // Note: Add Cloud Function to delete auth user
-        fetchMembers();
-        alert("Member deleted successfully");
-    } catch (error) {
-        console.error("Delete error:", error);
-        alert("Deletion failed: " + error.message);
-    }
-}
-
 // Bill Functions
 function showBillForm(memberId) {
     selectedMemberId = memberId;
@@ -185,31 +186,6 @@ function showBillForm(memberId) {
     if (billForm) {
         billForm.classList.remove("hidden");
         document.getElementById("billAmount").value = "";
-    }
-}
-
-async function generateBill() {
-    const amountInput = document.getElementById("billAmount");
-    const amount = parseFloat(amountInput.value.trim());
-
-    if (!selectedMemberId || !amount || amount <= 0) {
-        alert("Please enter a valid amount");
-        return;
-    }
-
-    try {
-        await addDoc(collection(db, "members", selectedMemberId, "bills"), {
-            amount: amount,
-            date: serverTimestamp(),
-            status: "pending"
-        });
-        
-        amountInput.value = "";
-        document.getElementById("billForm").classList.add("hidden");
-        alert("Bill generated successfully!");
-    } catch (error) {
-        console.error("Billing error:", error);
-        alert("Billing error: " + error.message);
     }
 }
 
@@ -231,36 +207,111 @@ function showDietForm(memberId) {
     });
 }
 
-document.getElementById("submitDiet")?.addEventListener("click", async () => {
-    const dietForm = document.getElementById("dietForm");
-    const memberId = dietForm?.dataset.memberId;
-    const dietDetails = document.getElementById("dietDetails").value.trim();
+function createMemberListItem(member, memberId) {
+    const listItem = document.createElement("li");
+    listItem.className = "bg-gray-100 p-4 rounded shadow flex flex-col sm:flex-row justify-between items-center mb-2 space-y-2 sm:space-y-0";
 
-    if (!memberId || !dietDetails) {
-        alert("Please enter diet details");
+    const memberInfo = document.createElement("div");
+    memberInfo.className = "flex-1";
+    memberInfo.innerHTML = `
+        <span class="font-medium">${member.name || "Unnamed Member"}</span>
+        <span class="text-sm text-gray-500 block sm:inline">(${member.email})</span>
+    `;
+
+    const buttonGroup = document.createElement("div");
+    buttonGroup.className = "flex space-x-2";
+
+    const buttons = [
+        ["Delete", "red", () => deleteMember(memberId)],
+        ["Bill", "blue", () => showBillForm(memberId)],
+        ["Diet", "green", () => showDietForm(memberId)]
+    ].map(([text, color, onClick]) => createButton(text, color, onClick));
+
+    buttonGroup.append(...buttons);
+    listItem.append(memberInfo, buttonGroup);
+
+    return listItem;
+}
+
+function createButton(text, color, onClick) {
+    const btn = document.createElement("button");
+    btn.textContent = text;
+    btn.className = `bg-${color}-500 hover:bg-${color}-700 text-white px-3 py-1 rounded transition-colors`;
+    btn.onclick = onClick;
+    return btn;
+}
+
+// Bill and Diet functions
+async function generateBill() {
+    const amountInput = document.getElementById("billAmount");
+    const amount = parseFloat(amountInput?.value.trim());
+
+    if (!selectedMemberId || !amount || amount <= 0) {
+        alert("Please enter a valid amount");
         return;
     }
 
+    const submitBtn = document.getElementById("submitBill");
+    setLoading(submitBtn, true);
+
     try {
-        await addDoc(collection(db, "members", memberId, "dietPlans"), {
-            details: dietDetails,
-            date: serverTimestamp()
+        await addDoc(collection(db, "members", selectedMemberId, "bills"), {
+            amount,
+            date: serverTimestamp(),
+            status: "pending"
         });
-
-        dietForm.classList.add("hidden");
-        alert("Diet plan assigned successfully!");
+        
+        amountInput.value = "";
+        elements.billForm?.classList.add("hidden");
+        alert("Bill generated successfully!");
     } catch (error) {
-        console.error("Diet plan error:", error);
-        alert("Error assigning diet: " + error.message);
+        showError(error, "Billing error");
+    } finally {
+        setLoading(submitBtn, false);
     }
+}
+
+// Event listeners
+document.addEventListener('DOMContentLoaded', () => {
+    elements.addMemberBtn?.addEventListener("click", addMember);
+    elements.logoutBtn?.addEventListener("click", async () => {
+        try {
+            await signOut(auth);
+            window.location.href = "../login/index.html";
+        } catch (error) {
+            showError(error, "Logout error");
+        }
+    });
+
+    document.getElementById("submitBill")?.addEventListener("click", generateBill);
+    document.getElementById("closeBillForm")?.addEventListener("click", () => {
+        elements.billForm?.classList.add("hidden");
+    });
+
+    document.getElementById("submitDiet")?.addEventListener("click", async () => {
+        const dietDetails = document.getElementById("dietDetails")?.value.trim();
+        const memberId = elements.dietForm?.dataset.memberId;
+
+        if (!memberId || !dietDetails) {
+            alert("Please enter diet details");
+            return;
+        }
+
+        const submitBtn = document.getElementById("submitDiet");
+        setLoading(submitBtn, true);
+
+        try {
+            await addDoc(collection(db, "members", memberId, "diet"), {
+                details: dietDetails,
+                date: serverTimestamp()
+            });
+
+            elements.dietForm?.classList.add("hidden");
+            alert("Diet plan assigned successfully!");
+        } catch (error) {
+            showError(error, "Diet plan error");
+        } finally {
+            setLoading(submitBtn, false);
+        }
+    });
 });
-
-// Event Listeners
-document.getElementById('closeBillForm')?.addEventListener('click', () => {
-    document.getElementById('billForm').classList.add('hidden');
-});
-
-document.getElementById("submitBill")?.addEventListener("click", generateBill);
-
-// Prevent global exposure - use proper event listeners instead
-// Remove window.* exposures and use event listeners in your HTML

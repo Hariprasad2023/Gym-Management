@@ -83,7 +83,7 @@ async function fetchMemberDiet() {
                 dietList.innerHTML += `
                     <li class="p-2 bg-gray-200 rounded mb-2">
                         <strong>Meal:</strong> ${dietData.details || "N/A"} <br>
-                        <strong>Date:</strong> ${new Date(dietData.date).toLocaleDateString()}
+                       <strong>Date:</strong> ${dietData.date?.toDate().toLocaleDateString()} <br>
                     </li>`;
             });
 

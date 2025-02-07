@@ -6,6 +6,12 @@ const emailInput = document.getElementById("email");
 const passwordInput = document.getElementById("password");
 const loginBtn = document.getElementById("login-btn");
 const errorMessage = document.getElementById("error-message");
+const guestLogin=document.getElementById("guest-btn");
+//guest login
+guestLogin.addEventListener("click", async (e) => {
+  e.preventDefault(); // Prevent form submission
+ window.location.href = "../User/index.html";
+});
 
 loginBtn.addEventListener("click", async (e) => {
   e.preventDefault(); // Prevent form submission
@@ -53,3 +59,4 @@ loginBtn.addEventListener("click", async (e) => {
     errorMessage.textContent = "Please fill in all fields.";
   }
 });
+
