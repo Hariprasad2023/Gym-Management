@@ -1,3 +1,4 @@
+![Screenshot 2025-02-09 005010](https://github.com/user-attachments/assets/55fef87c-3b67-4ecf-82f3-2ad2a347e90e)
 # FitWorld - Gym Management Software
 
 FitWorld is a web-based gym management system that helps gym administrators manage member registrations, track recharges, and generate bills efficiently.
